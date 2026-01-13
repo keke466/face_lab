@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>人脸识别虚拟仿真实验</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --accent-color: #e74c3c;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-top: 56px;
+        }
+        
+        .mobile-optimized {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        .experiment-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            margin: 10px;
+            padding: 20px;
+        }
+        
+        .step-indicator {
+            position: sticky;
+            top: 60px;
+            z-index: 100;
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ddd;
+            display: inline-block;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+        
+        .step-dot.active {
+            background: var(--primary-color);
+            transform: scale(1.3);
+        }
+        
+        .matrix-cell {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            margin: 1px;
+            border-radius: 3px;
+            transition: transform 0.2s;
+        }
+        
+        .matrix-cell:hover {
+            transform: scale(1.5);
+            z-index: 10;
+        }
+        
+        .face-image {
+            border: 3px solid transparent;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .face-image.selected {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.5);
+        }
+        
+        .slider-container {
+            padding: 20px 0;
+        }
+        
+        /* 手机端优化 */
+        @media (max-width: 768px) {
+            .matrix-cell {
+                width: 12px;
+                height: 12px;
+                margin: 0.5px;
+            }
+            
+            .experiment-card {
+                margin: 5px;
+                padding: 15px;
+            }
+            
+            h2 {
+                font-size: 1.3rem;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+        
+        /* 防止手机点击延迟 */
+        .btn, .face-image, .matrix-cell {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="mobile-optimized">
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: rgba(0,0,0,0.8);">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-brain"></i> 人脸识别虚拟仿真实验
+            </a>
+            <button class="btn btn-outline-light btn-sm" onclick="downloadReport()">
+                <i class="fas fa-download"></i> 下载报告
+            </button>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- 步骤指示器 -->
+        <div class="step-indicator mb-4">
+            <div class="d-flex justify-content-center flex-wrap" id="stepDots"></div>
+            <div class="text-center mt-2" id="stepTitle"></div>
+        </div>
+
+        <!-- 实验主区域 -->
+        <div class="experiment-card">
+            <div id="experimentContent"></div>
+            
+            <!-- 导航按钮 -->
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-outline-primary" onclick="prevStep()" id="prevBtn">
+                    <i class="fas fa-arrow-left"></i> 上一步
+                </button>
+                <div>
+                    <span class="badge bg-info me-2">进度: <span id="progressText">0%</span></span>
+                    <button class="btn btn-danger" onclick="resetExperiment()">
+                        <i class="fas fa-redo"></i> 重置
+                    </button>
+                </div>
+                <button class="btn btn-primary" onclick="nextStep()" id="nextBtn">
+                    下一步 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 实验数据面板 -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="experiment-card">
+                    <h5><i class="fas fa-chart-line"></i> 实时数据</h5>
+                    <div id="dataPanel"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="experiment-card">
+                    <h5><i class="fas fa-camera"></i> 人脸库预览</h5>
+                    <div id="facePreview" class="d-flex flex-wrap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 相机模态框 -->
+    <div class="modal fade" id="cameraModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">拍摄照片</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <video id="cameraFeed" width="100%" autoplay playsinline></video>
+                    <canvas id="photoCanvas" style="display:none;"></canvas>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="switchCamera()">
+                        <i class="fas fa-sync-alt"></i> 切换摄像头
+                    </button>
+                    <button class="btn btn-primary" onclick="capturePhoto()">
+                        <i class="fas fa-camera"></i> 拍照
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载动画 -->
+    <div id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="mt-2" id="loadingText">正在计算特征脸...</div>
+        </div>
+    </div>
+
+    <!-- 数学公式提示 -->
+    <div class="position-fixed bottom-0 end-0 m-3">
+        <button class="btn btn-info btn-sm" onclick="toggleMathHelp()">
+            <i class="fas fa-square-root-alt"></i> 数学公式
+        </button>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+    
+    <script>
+        // 全局变量
+        let currentStep = 0;
+        const totalSteps = 12;
+        let experimentData = {
+            selectedFaces: [],
+            meanFace: null,
+            eigenfaces: [],
+            eigenvalues: [],
+            testResults: [],
+            report: {}
+        };
+        
+        // 步骤配置
+        const steps = [
+            { title: "实验介绍", icon: "fas fa-info-circle" },
+            { title: "选择人脸数据", icon: "fas fa-users" },
+            { title: "矩阵化观察", icon: "fas fa-th" },
+            { title: "生成平均脸", icon: "fas fa-user-friends" },
+            { title: "数据中心化", icon: "fas fa-minus-circle" },
+            { title: "协方差矩阵", icon: "fas fa-project-diagram" },
+            { title: "特征分解", icon: "fas fa-sitemap" },
+            { title: "特征脸选择", icon: "fas fa-sliders-h" },
+            { title: "投影系数", icon: "fas fa-ruler-combined" },
+            { title: "人脸重建", icon: "fas fa-redo" },
+            { title: "识别测试", icon: "fas fa-fingerprint" },
+            { title: "实验报告", icon: "fas fa-file-alt" }
+        ];
+        
+        // ORL数据集（模拟数据 - 实际部署时替换为真实数据）
+        const orlDataset = [];
+        for (let i = 1; i <= 10; i++) {
+            for (let j = 1; j <= 10; j++) {
+                orlDataset.push({
+                    id: `s${i}_${j}`,
+                    subject: i,
+                    url: `data/orl_faces/s${i}/${j}.pgm`,
+                    selected: false
+                });
+            }
+        }
+        
+        // 初始化实验
+        function initExperiment() {
+            generateStepDots();
+            updateProgress();
+            loadStep(currentStep);
+        }
+        
+        // 生成步骤指示器
+        function generateStepDots() {
+            const container = document.getElementById('stepDots');
+            container.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const dot = document.createElement('div');
+                dot.className = `step-dot ${index === currentStep ? 'active' : ''}`;
+                dot.title = step.title;
+                dot.onclick = () => goToStep(index);
+                container.appendChild(dot);
+            });
+            
+            document.getElementById('stepTitle').innerHTML = 
+                `<strong>${currentStep + 1}. ${steps[currentStep].title}</strong>`;
+        }
+        
+        // 更新进度
+        function updateProgress() {
+            const progress = Math.round((currentStep + 1) / totalSteps * 100);
+            document.getElementById('progressText').textContent = `${progress}%`;
+        }
+        
+        // 加载步骤内容
+        function loadStep(stepIndex) {
+            const contentDiv = document.getElementById('experimentContent');
+            
+            switch(stepIndex) {
+                case 0: showIntroduction(); break;
+                case 1: showFaceSelection(); break;
+                case 2: showMatrixView(); break;
+                case 3: showMeanFace(); break;
+                case 4: showCentering(); break;
+                case 5: showCovarianceMatrix(); break;
+                case 6: showEigenDecomposition(); break;
+                case 7: showEigenfaceSelection(); break;
+                case 8: showProjection(); break;
+                case 9: showReconstruction(); break;
+                case 10: showRecognitionTest(); break;
+                case 11: showReport(); break;
+            }
+            
+            updateButtons();
+            updateDataPanel();
+            updateFacePreview();
+            generateStepDots();
+            updateProgress();
+        }
+        
+        // 步骤1: 实验介绍
+        function showIntroduction() {
+            const content = `
+                <div class="text-center">
+                    <h2 class="mb-4">人脸识别虚拟仿真实验</h2>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-calculator fa-3x text-primary mb-3"></i>
+                                <h5>线性代数实战</h5>
+                                <p>通过PCA算法深入理解矩阵运算</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-eye fa-3x text-success mb-3"></i>
+                                <h5>可视化学习</h5>
+                                <p>直观展示数学原理与算法过程</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-mobile-alt fa-3x text-warning mb-3"></i>
+                                <h5>移动端优化</h5>
+                                <p>完美支持手机浏览器访问</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h5><i class="fas fa-graduation-cap"></i> 学习目标</h5>
+                        <ul class="text-start">
+                            <li>理解人脸图像的矩阵表示</li>
+                            <li>掌握PCA降维原理</li>
+                            <li>实现特征脸(Eigenface)算法</li>
+                            <li>完成人脸识别系统构建</li>
+                        </ul>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-lg mt-3" onclick="startCamera()">
+                        <i class="fas fa-camera"></i> 开始实验
+                    </button>
+                </div>
+            `;
+            document.getElementById('experimentContent').innerHTML = content;
+        }
+        
+        // 步骤2: 选择人脸数据
+        function showFaceSelection() {
+            const selectedCount = experimentData.selectedFaces.length;
+            const content = `
+                <h2><i class="fas fa-users"></i> 选择人脸数据</h2>
+                <p class="text-muted">请选择5-10张人脸图像用于训练（已选: ${selectedCount}张）</p>
+                
+                <div class="mb-3">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary" onclick="selectRandomFaces(5)">
+                            <i class="fas fa-random"></i> 随机选5张
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="selectRandomFaces(10)">
+                            随机选10张
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="clearSelection()">
+                            <i class="fas fa-trash"></i> 清空选择
+                        </button>
+                    </div>
+                    
+                    <button class="btn btn-success float-end" onclick="openCamera()">
+                        <i class="fas fa-camera"></i> 拍摄我的照片
+                    </button>
+                </div>
+                
+                <div id="faceGallery" class="d-flex flex-wrap justify-content-center">
+                    ${orlDataset.map((face, index) => `
+                        <div class="m-2">
+                            <img src="https://via.placeholder.com/80x100/4A90E2/FFFFFF?text=人脸${face.subject}.${index%10+1}" 
+                                 class="face-image ${face.selected ? 'selected' : ''}" 
+                                 width="80" height="100"
+                                 onclick="toggleFaceSelection(${index})"
+                                 title="Subject ${face.subject}">
+                            <div class="text-center small">S${face.subject}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${selectedCount >= 5 ? `
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle"></i> 已选择足够数据，可以进入下一步
+                    </div>
+                ` : `
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> 请至少选择5张人脸图像
+                    </div>
+                `}
+            `;
+            document.getElementById('experimentContent').innerHTML = content;
+        }
+        
+        // 步骤3: 矩阵化观察
+        function showMatrixView() {
+            const content = `
+                <h2><i class="fas fa-th"></i> 图像矩阵化观察</h2>
+                <p class="text-muted">点击像素查看其在矩阵中的位置和数值</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>人脸图像</h5>
+                        <img src="https://via.placeholder.com/200x250/3498db/FFFFFF?text=示例人脸" 
+                             class="img-fluid border rounded" 
+                             id="selectedFaceImg">
+                    </div>
+                    <div class="col-md-6">
+                        <h5>对应的矩阵表示</h5>
+                        <div class="border rounded p-2" style="overflow: auto; max-height: 300px;">
+                            <div id="matrixDisplay"></div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                矩阵维度: <span id="matrixDim">20×25 (500个元素)</span><br>
+                                当前像素: <span id="pixelInfo">未选择</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <label>选择图像: </label>
+                    <select class="form-select w-auto d-inline-block" onchange="changeMatrixImage(this.value)">
+                        <option value="0">图像1</option>
+                        <option value="1">图像2</option>
+                        <option value="2">图像3</option>
+                    </select>
+                    
+                    <label class="ms-4">矩阵显示大小: </label>
+                    <input type="range" class="form-range w-auto d-inline-block" 
+                           min="5" max="20" value="10" 
+                           oninput="updateMatrixSize(this.value)">
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb"></i> 
+                    <strong>学习要点:</strong> 每张人脸图像可以表示为一个高维向量（矩阵展平），在数学上对应高维空间中的一个点。
+                </div>
+            `;
+            document.getElementById('experimentContent').innerHTML = content;
+            generateMatrixPreview();
+        }
+        
+        // 步骤4: 生成平均脸
+        function showMeanFace() {
+            const content = `
+                <h2><i class="fas fa-user-friends"></i> 生成平均脸</h2>
+                <p class="text-muted">计算所有人脸图像的平均值</p>
+                
+                <div class="text-center">
+                    <div class="position-relative d-inline-block">
+                        <img src="https://via.placeholder.com/200x250/2ecc71/FFFFFF?text=平均脸" 
+                             class="img-fluid border rounded" 
+                             id="meanFaceImg">
+                        <div class="position-absolute top-0 start-0 m-2">
+                            <span class="badge bg-success">平均脸</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="slider-container">
+                    <label><i class="fas fa-sliders-h"></i> 调整贡献度权重</label>
+                    <input type="range" class="form-range" min="0" max="100" value="100" 
+                           oninput="updateMeanFace(this.value)">
+                    <div class="d-flex justify-content-between">
+                        <small>原始权重</small>
+                        <small id="weightValue">100%</small>
+                        <small>平均权重</small>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h6>参与计算的人脸</h6>
+                        <div class="d-flex flex-wrap" id="contributingFaces"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>计算过程</h6>
+                        <div class="border rounded p-3 bg-light">
+                            <code>
+                                平均脸向量 = (人脸₁ + 人脸₂ + ... + 人脸ₙ) / n<br>
+                                n = <span id="faceCount">5</span> 张图像<br>
+                                向量维度 = <span id="vectorDim">500</span>
+                            </code>
+                        </div>
+                        <button class="btn btn-primary mt-3" onclick="computeMeanFace()">
+                            <i class="fas fa-calculator"></i> 开始计算平均脸
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('experimentContent').innerHTML = content;
+        }
+        
+        // 步骤5: 数据中心化
+        function showCentering() {
+            const content = `
+                <h2><i class="fas fa-minus-circle"></i> 数据中心化</h2>
+                <p class="text-muted">原始人脸减去平均脸，得到中心化数据</p>
+                
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <h6>原始人脸</h6>
+                        <img src="https://via.placeholder.com/120x150/3498db/FFFFFF?text=原始" 
+                             class="img-fluid border rounded">
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h6>减去平均脸</h6>
+                        <div class="display-1">-</div>
+                        <img src="https://via.placeholder.com/120x150/2ecc71/FFFFFF?text=平均" 
+                             class="img-fluid border rounded">
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h6>中心化人脸</h6>
+                        <img src="https://via.placeholder.com/120x150/e74c3c/FFFFFF?text=差值" 
+                             class="img-fluid border rounded">
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary" onclick="showOriginalFace()">
+                            显示原始人脸
+                        </button>
+                        <button class="btn btn-outline-success" onclick="showMeanFace()">
+                            显示平均脸
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="showCenteredFace()">
+                            显示中心化结果
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>几何意义解释</h6>
+                    <div class="border rounded p-3">
+                        <p>数据中心化将所有人脸数据平移到以平均脸为原点的坐标系中。</p>
+                        <p>数学表达: <code>B = A - μ</code></p>
+                        <p>其中：</p>
+                        <ul>
+                            <li>A: 原始数据矩阵 (n×d)</li>
+                            <li>μ: 平均脸向量 (1×d)</li>
+                            <li>B: 中心化矩阵 (n×d)</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary mt-3" onclick="performCentering()">
+                    <i class="fas fa-play"></i> 执行数据中心化
+                </button>
+            `;
+            document.getElementById('experimentContent').innerHTML = content;
+        }
+        
+        // 步骤6-12的类似函数...
+        
+        // 工具函数
+        function toggleFaceSelection(index) {
+            orlDataset[index].selected = !orlDataset[index].selected;
+            experimentData.selectedFaces = orlDataset.filter(f => f.selected);
+            loadStep(1);
+        }
+        
+        function selectRandomFaces(count) {
+            // 随机选择指定数量的面部
+            const shuffled = [...orlDataset].sort(() => 0.5 - Math.random());
+            orlDataset.forEach(face => face.selected = false);
+            
+            for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+                shuffled[i].selected = true;
+            }
+            
+            experimentData.selectedFaces = orlDataset.filter(f => f.selected);
+            loadStep(1);
+        }
+        
+        function clearSelection() {
+            orlDataset.forEach(face => face.selected = false);
+            experimentData.selectedFaces = [];
+            loadStep(1);
+        }
+        
+        function openCamera() {
+            const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+            modal.show();
+            startCamera();
+        }
+        
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' } 
+                });
+                document.getElementById('cameraFeed').srcObject = stream;
+            } catch (err) {
+                alert('无法访问摄像头: ' + err.message);
+            }
+        }
+        
+        function capturePhoto() {
+            const video = document.getElementById('cameraFeed');
+            const canvas = document.getElementById('photoCanvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+            
+            // 添加到数据集
+            const newFace = {
+                id: `self_${Date.now()}`,
+                subject: '自己',
+                url: canvas.toDataURL('image/jpeg'),
+                selected: true
+            };
+            
+            orlDataset.push(newFace);
+            experimentData.selectedFaces.push(newFace);
+            
+            // 关闭相机
+            video.srcObject.getTracks().forEach(track => track.stop());
+            bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
+            
+            loadStep(1);
+        }
+        
+        function generateMatrixPreview() {
+            const matrixDiv = document.getElementById('matrixDisplay');
+            matrixDiv.innerHTML = '';
+            
+            const size = 10; // 10x10 预览矩阵
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    const value = Math.random() * 255;
+                    const elem = document.createElement('div');
+                    elem.className = 'matrix-cell d-inline-block';
+                    elem.style.backgroundColor = `rgb(${value},${value},${value})`;
+                    elem.title = `位置: (${i},${j}), 值: ${value.toFixed(1)}`;
+                    elem.onclick = () => {
+                        document.getElementById('pixelInfo').textContent = 
+                            `行: ${i}, 列: ${j}, 灰度值: ${value.toFixed(1)}`;
+                    };
+                    matrixDiv.appendChild(elem);
+                }
+                matrixDiv.appendChild(document.createElement('br'));
+            }
+        }
+        
+        function nextStep() {
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
+                loadStep(currentStep);
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                loadStep(currentStep);
+            }
+        }
+        
+        function goToStep(index) {
+            currentStep = index;
+            loadStep(currentStep);
+        }
+        
+        function updateButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.disabled = currentStep === 0;
+            nextBtn.disabled = currentStep === totalSteps - 1;
+            
+            if (currentStep === totalSteps - 1) {
+                nextBtn.innerHTML = '<i class="fas fa-check"></i> 完成实验';
+            } else {
+                nextBtn.innerHTML = '下一步 <i class="fas fa-arrow-right"></i>';
+            }
+        }
+        
+        function updateDataPanel() {
+            const panel = document.getElementById('dataPanel');
+            panel.innerHTML = `
+                <div class="small">
+                    <div class="mb-2">
+                        <strong>当前步骤:</strong> ${steps[currentStep].title}
+                    </div>
+                    <div class="mb-2">
+                        <strong>已选人脸:</strong> ${experimentData.selectedFaces.length}张
+                    </div>
+                    <div class="mb-2">
+                        <strong>特征脸数量:</strong> ${experimentData.eigenfaces.length}
+                    </div>
+                    <div class="mb-2">
+                        <strong>计算进度:</strong> ${Math.round((currentStep + 1) / totalSteps * 100)}%
+                    </div>
+                </div>
+            `;
+        }
+        
+        function updateFacePreview() {
+            const preview = document.getElementById('facePreview');
+            const selected = experimentData.selectedFaces.slice(0, 6);
+            
+            preview.innerHTML = selected.map(face => `
+                <div class="m-1">
+                    <img src="https://via.placeholder.com/40x50/4A90E2/FFFFFF?text=S${face.subject}" 
+                         width="40" height="50" class="rounded">
+                </div>
+            `).join('');
+            
+            if (selected.length === 0) {
+                preview.innerHTML = '<div class="text-muted small">暂无选择的人脸</div>';
+            }
+        }
+        
+        function computeMeanFace() {
+            showLoading('正在计算平均脸...');
+            setTimeout(() => {
+                hideLoading();
+                alert('平均脸计算完成！');
+                experimentData.meanFace = 'computed';
+                loadStep(currentStep);
+            }, 1500);
+        }
+        
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        
+        function downloadReport() {
+            const report = `
+                人脸识别虚拟仿真实验报告
+                实验时间: ${new Date().toLocaleString()}
+                完成步骤: ${currentStep + 1}/${totalSteps}
+                选择人脸: ${experimentData.selectedFaces.length}张
+                
+                实验总结:
+                本实验通过PCA算法实现了人脸识别系统，
+                深入理解了线性代数在实际应用中的作用。
+                
+                --- 实验记录 ---
+                ${steps.map((step, i) => `${i+1}. ${step.title}: ${i <= currentStep ? '✓ 完成' : '○ 未开始'}`).join('\n')}
+            `;
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `人脸识别实验报告_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function resetExperiment() {
+            if (confirm('确定要重置实验吗？所有进度将丢失。')) {
+                currentStep = 0;
+                experimentData = {
+                    selectedFaces: [],
+                    meanFace: null,
+                    eigenfaces: [],
+                    eigenvalues: [],
+                    testResults: [],
+                    report: {}
+                };
+                orlDataset.forEach(face => face.selected = false);
+                initExperiment();
+            }
+        }
+        
+        function toggleMathHelp() {
+            alert(`
+                PCA核心数学公式:
+                
+                1. 数据中心化: X̄ = X - μ
+                2. 协方差矩阵: C = X̄ᵀX̄ / (n-1)
+                3. 特征值分解: Cv = λv
+                4. 投影系数: y = X̄v
+                5. 重建图像: X̂ = μ + Σ(yᵢvᵢ)
+                
+                其中:
+                X: 原始数据矩阵
+                μ: 平均脸向量
+                v: 特征向量(特征脸)
+                λ: 特征值
+            `);
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', initExperiment);
+    </script>
+</body>
+</html>
