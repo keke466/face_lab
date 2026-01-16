@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿尔法星 · 2D PCA基础实验室</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 阿尔法星特有样式变量 */
+        :root {
+            --primary-blue: #1a5fb4;
+            --secondary-blue: #3584e4;
+            --point-pink: #ff6b9d;
+            --formula-yellow: #ffd166;
+            --important-red: #ff6b6b;
+            --axis-green: #26a269;
+            --text-light: #ffffff;
+            --bg-dark: #0a0e23;
+            --card-bg: rgba(25, 35, 70, 0.8);
+            --border-color: rgba(100, 180, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../../index.html" class="back-button">← 返回星系</a>
+
+    <!-- 主容器 -->
+    <div class="alpha-lab">
+        <!-- 标题区 -->
+        <header class="lab-header">
+            <h1>🧭 阿尔法星 · 2D PCA基础实验室</h1>
+            <p class="lab-subtitle">通过交互式二维点，直观理解主成分分析的核心原理</p>
+            
+            <div class="lab-stats">
+                <div class="stat">
+                    <span class="stat-value" id="pointCount">0</span>
+                    <span class="stat-label">当前点数</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="stepCount">1</span>
+                    <span class="stat-label">当前步骤</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="varianceValue">0%</span>
+                    <span class="stat-label">解释方差</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="lab-content">
+            <!-- 左侧：交互画布 -->
+            <section class="canvas-section">
+                <div class="canvas-header">
+                    <h2>🖱️ 交互式画布</h2>
+                    <div class="canvas-tools">
+                        <button class="tool-btn active" onclick="switchTool('add')">
+                            <span class="tool-icon">•</span> 添加点
+                        </button>
+                        <button class="tool-btn" onclick="switchTool('move')">
+                            <span class="tool-icon">↕</span> 移动点
+                        </button>
+                        <button class="tool-btn" onclick="switchTool('delete')">
+                            <span class="tool-icon">×</span> 删除点
+                        </button>
+                        <button class="tool-btn" onclick="clearAllPoints()">
+                            <span class="tool-icon">🗑️</span> 清空
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="canvas-container">
+                    <canvas id="pcaCanvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div class="coordinate-display" id="coordDisplay">坐标: (0, 0)</div>
+                    </div>
+                </div>
+                
+                <div class="canvas-controls">
+                    <button class="control-btn primary" onclick="addRandomPoints(5)">+ 随机添加5个点</button>
+                    <button class="control-btn" onclick="addGridPoints()">📊 添加网格点</button>
+                    <button class="control-btn" onclick="undoLastPoint()" id="undoBtn">↩️ 撤销</button>
+                </div>
+            </section>
+
+            <!-- 中间：PCA控制面板 -->
+            <section class="control-section">
+                <div class="control-card">
+                    <h3>📈 PCA计算步骤</h3>
+                    
+                    <div class="steps-container">
+                        <div class="step active" data-step="1">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>添加数据点</h4>
+                                <p>在左侧画布点击添加点，或使用随机添加按钮</p>
+                            </div>
+                        </div>
+                        
+                        <div class="step" data-step="2">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>计算中心点</h4>
+                                <p>点击计算所有点的平均值（中心）</p>
+                                <button class="step-btn" onclick="calculateMean()">计算中心点</button>
+                            </div>
+                        </div>
+                        
+                        <div class="step" data-step="3">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>中心化数据</h4>
+                                <p>将每个点减去中心点，数据以原点为中心</p>
+                                <button class="step-btn" onclick="centerData()">执行中心化</button>
+                            </div>
+                        </div>
+                        
+                        <div class="step" data-step="4">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>计算协方差矩阵</h4>
+                                <p>计算数据的变化方向</p>
+                                <button class="step-btn" onclick="calculateCovariance()">计算协方差</button>
+                            </div>
+                        </div>
+                        
+                        <div class="step" data-step="5">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <h4>找到主成分方向</h4>
+                                <p>计算特征向量（数据最分散的方向）</p>
+                                <button class="step-btn" onclick="calculateEigenvectors()">计算主方向</button>
+                            </div>
+                        </div>
+                        
+                        <div class="step" data-step="6">
+                            <div class="step-number">6</div>
+                            <div class="step-content">
+                                <h4>投影与重建</h4>
+                                <p>将数据投影到主方向，并重建原数据</p>
+                                <button class="step-btn" onclick="projectAndReconstruct()">投影与重建</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="action-btn primary" onclick="runFullPCA()">🚀 一键运行完整PCA</button>
+                        <button class="action-btn" onclick="resetExperiment()">🔄 重置实验</button>
+                    </div>
+                </div>
+                
+                <!-- 参数调节器 -->
+                <div class="control-card">
+                    <h3>⚙️ 参数调节</h3>
+                    
+                    <div class="parameter">
+                        <label>显示中心点</label>
+                        <label class="switch">
+                            <input type="checkbox" id="showMean" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>显示坐标轴</label>
+                        <label class="switch">
+                            <input type="checkbox" id="showAxes" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>显示主方向</label>
+                        <label class="switch">
+                            <input type="checkbox" id="showEigenvectors" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>点大小</label>
+                        <input type="range" id="pointSize" min="3" max="15" value="8">
+                        <span id="pointSizeValue">8</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：数学公式与解释 -->
+            <section class="math-section">
+                <div class="math-card">
+                    <h3>🧮 当前步骤的数学原理</h3>
+                    
+                    <div class="formula-display" id="formulaDisplay">
+                        <div class="formula-title">数据点表示</div>
+                        <div class="formula-math">
+                            <span class="math-var">x<sub>i</sub></span> = 
+                            <span class="math-bracket">(</span>
+                            <span class="math-var">x<sub>i1</sub></span>, 
+                            <span class="math-var">x<sub>i2</sub></span>
+                            <span class="math-bracket">)</span>
+                        </div>
+                        <div class="formula-explain">
+                            每个数据点用二维向量表示，第一维是横坐标，第二维是纵坐标。
+                        </div>
+                    </div>
+                    
+                    <div class="math-details">
+                        <h4>📖 详细解释</h4>
+                        <div class="detail-content" id="detailContent">
+                            <p>PCA（主成分分析）的目标是找到数据中变化最大的方向。</p>
+                            <p>在这个二维示例中，您可以直观地看到：</p>
+                            <ol>
+                                <li>数据点在二维平面上的分布</li>
+                                <li>数据的中心位置（平均值）</li>
+                                <li>数据的主要变化方向（特征向量）</li>
+                                <li>如何通过投影降维</li>
+                            </ol>
+                        </div>
+                    </div>
+                    
+                    <div class="math-variables">
+                        <h4>📊 计算变量</h4>
+                        <table class="variable-table">
+                            <tr><td>样本数 <em>n</em>:</td><td id="varN">0</td></tr>
+                            <tr><td>均值 μ:</td><td id="varMean">(0.00, 0.00)</td></tr>
+                            <tr><td>协方差矩阵 C:</td><td id="varCov">[0.00, 0.00;<br>0.00, 0.00]</td></tr>
+                            <tr><td>特征值 λ:</td><td id="varEigenvalues">[0.00, 0.00]</td></tr>
+                            <tr><td>特征向量 V:</td><td id="varEigenvectors">[(0.00, 0.00),<br>(0.00, 0.00)]</td></tr>
+                            <tr><td>解释方差:</td><td id="varVariance">0.00%</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 重要公式提示 -->
+                <div class="important-formulas">
+                    <h3>⚠️ 重要公式</h3>
+                    <div class="formula-important">
+                        <div class="formula-title">均值公式</div>
+                        <div class="formula-math important">
+                            μ = <span class="frac"><span>1</span><span>n</span></span> 
+                            ∑<span class="sum-limits"><sub>i=1</sub><sup>n</sup></span> 
+                            x<sub>i</sub>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-important">
+                        <div class="formula-title">协方差矩阵</div>
+                        <div class="formula-math important">
+                            C = <span class="frac"><span>1</span><span>n-1</span></span> 
+                            ∑ (x<sub>i</sub> - μ)(x<sub>i</sub> - μ)<sup>T</sup>
+                        </div>
+                    </div>
+                    
+                    <div class="formula-important">
+                        <div class="formula-title">特征值方程</div>
+                        <div class="formula-math important">Cv = λv</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 动画控制栏 -->
+        <footer class="lab-footer">
+            <div class="animation-controls">
+                <button class="anim-btn" onclick="prevStep()">⏮️ 上一步</button>
+                <button class="anim-btn primary" onclick="toggleAnimation()" id="playBtn">▶️ 播放动画</button>
+                <button class="anim-btn" onclick="nextStep()">⏭️ 下一步</button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 16.6%"></div>
+                </div>
+                <div class="progress-labels">
+                    <span>添加点</span>
+                    <span>计算均值</span>
+                    <span>中心化</span>
+                    <span>协方差</span>
+                    <span>特征向量</span>
+                    <span>投影重建</span>
+                </div>
+            </div>
+            
+            <div class="footer-info">
+                <p>💡 提示：点击画布添加点，拖动点可以调整位置</p>
+                <p class="hint">使用右侧公式对照理解每个步骤的数学原理</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('阿尔法星实验室启动...');
+            initPCAExperiment();
+        });
+    </script>
+</body>
+</html>

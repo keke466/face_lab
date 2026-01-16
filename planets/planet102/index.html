@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贝塔星 · 笑脸PCA过渡实验</title>
+    <style>
+        /* 贝塔星特有样式 */
+        :root {
+            --primary-color: #9d4edd;      /* 紫色主色调 */
+            --secondary-color: #c77dff;    /* 浅紫色 */
+            --smiley-yellow: #ffd166;      /* 笑脸黄色 */
+            --feature-blue: #4cc9f0;       /* 特征蓝色 */
+            --error-red: #ff6b6b;          /* 错误红色 */
+            --success-green: #06d6a0;      /* 成功绿色 */
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0a0e23;
+            color: #e8f4fc;
+            min-height: 100vh;
+        }
+        
+        /* 返回按钮 */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(25, 35, 70, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: var(--primary-color);
+            transform: translateX(-5px);
+        }
+        
+        /* 主容器 */
+        .beta-lab {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 标题区 */
+        .lab-header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, 
+                rgba(157, 78, 221, 0.3), 
+                rgba(76, 201, 240, 0.3));
+            border-radius: 20px;
+            border: 2px solid rgba(157, 78, 221, 0.4);
+        }
+        
+        .lab-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: white;
+        }
+        
+        .lab-header p {
+            color: #c0deff;
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        /* 主内容区布局 */
+        .lab-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        @media (max-width: 1200px) {
+            .lab-content {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .lab-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 卡片样式 */
+        .card {
+            background: rgba(25, 35, 70, 0.8);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .card h2 {
+            color: white;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        /* 笑脸画廊 */
+        .smiley-gallery {
+            grid-column: span 2;
+        }
+        
+        .smiley-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .smiley-cell {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .smiley-cell:hover {
+            transform: scale(1.1);
+            border-color: var(--smiley-yellow);
+        }
+        
+        .smiley-cell.selected {
+            border-color: var(--primary-color);
+            background: rgba(157, 78, 221, 0.1);
+            transform: scale(1.05);
+        }
+        
+        /* 特征脸显示 */
+        .eigenface-display {
+            text-align: center;
+        }
+        
+        .eigenface-canvas {
+            background: rgba(10, 14, 35, 0.8);
+            border-radius: 12px;
+            border: 2px solid rgba(100, 180, 255, 0.2);
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+        }
+        
+        /* 参数控制 */
+        .parameter-control {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .parameter-control:last-child {
+            border-bottom: none;
+        }
+        
+        .parameter-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #c0deff;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            display: inline-block;
+            min-width: 40px;
+            text-align: right;
+            color: var(--smiley-yellow);
+        }
+        
+        /* 控制按钮 */
+        .control-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(157, 78, 221, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        /* 数学公式 */
+        .formula-box {
+            background: rgba(10, 14, 35, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(255, 209, 102, 0.2);
+        }
+        
+        .formula-title {
+            color: var(--smiley-yellow);
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .formula {
+            font-size: 1.5rem;
+            color: white;
+            text-align: center;
+            font-family: 'Cambria Math', serif;
+            margin-bottom: 15px;
+        }
+        
+        .formula-explanation {
+            color: #c0deff;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        /* 实验步骤 */
+        .experiment-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .step.active {
+            background: rgba(157, 78, 221, 0.15);
+            border-left-color: var(--primary-color);
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        
+        .step-title {
+            display: inline-block;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .step-description {
+            color: #c0deff;
+            font-size: 0.95rem;
+            margin-top: 10px;
+        }
+        
+        /* 实验区域 */
+        .experiment-area {
+            grid-column: span 3;
+        }
+        
+        .experiment-canvas {
+            background: rgba(10, 14, 35, 0.8);
+            border-radius: 12px;
+            border: 2px solid rgba(100, 180, 255, 0.2);
+            width: 100%;
+            height: 400px;
+            margin-bottom: 25px;
+        }
+        
+        /* 页脚 */
+        .lab-footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            background: rgba(25, 35, 70, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 50%;
+            transition: width 0.5s;
+        }
+        
+        .navigation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../../index.html" class="back-btn">← 返回星系</a>
+    
+    <!-- 主容器 -->
+    <div class="beta-lab">
+        <!-- 标题区 -->
+        <header class="lab-header">
+            <h1>😊 贝塔星 · 笑脸PCA过渡实验</h1>
+            <p>通过笑脸表情数据集，理解图像处理中的PCA原理，从二维点过渡到像素空间</p>
+        </header>
+        
+        <!-- 主内容区 -->
+        <div class="lab-content">
+            <!-- 笑脸画廊 -->
+            <div class="card smiley-gallery">
+                <h2>😀 笑脸数据集</h2>
+                <p style="color: #c0deff; margin-bottom: 20px;">
+                    选择5-8个表情用于PCA分析。表情越多样，特征脸越有趣！
+                </p>
+                
+                <div class="smiley-grid" id="smileyGrid">
+                    <!-- 笑脸将通过JavaScript动态生成 -->
+                </div>
+                
+                <div class="control-buttons">
+                    <button class="btn btn-primary" onclick="selectRandomSmileys(6)">
+                        🎲 随机选择6个
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearSelection()">
+                        🗑️ 清空选择
+                    </button>
+                    <button class="btn btn-primary" onclick="loadSelectedSmileys()">
+                        ✅ 加载选定表情
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 特征脸显示 -->
+            <div class="card eigenface-display">
+                <h2>🔍 特征脸可视化</h2>
+                <div class="eigenface-canvas" id="eigenfaceCanvas">
+                    😊
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        显示第 <span id="eigenfaceNumber">1</span> 个特征脸
+                    </label>
+                    <input type="range" min="1" max="10" value="1" class="slider" 
+                           id="eigenfaceSlider" oninput="changeEigenface(this.value)">
+                    <span class="slider-value" id="eigenfaceValue">1/10</span>
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        特征强度: <span id="strengthValue">50%</span>
+                    </label>
+                    <input type="range" min="0" max="100" value="50" class="slider" 
+                           id="strengthSlider" oninput="changeStrength(this.value)">
+                </div>
+                
+                <p style="color: #c0deff; margin-top: 20px; font-size: 0.9rem;">
+                    特征脸展示了数据的主要变化模式。第一个特征脸通常代表表情的"平均"特征。
+                </p>
+            </div>
+            
+            <!-- 数学原理 -->
+            <div class="card">
+                <h2>🧮 PCA数学原理</h2>
+                
+                <div class="formula-box">
+                    <div class="formula-title">图像向量化</div>
+                    <div class="formula">I → x ∈ ℝ<sup>d</sup></div>
+                    <div class="formula-explanation">
+                        每个表情图像被拉直成一个d维向量，其中d = 宽度 × 高度 × 颜色通道数。
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="formula-title">协方差矩阵</div>
+                    <div class="formula">C = X<sup>T</sup>X / (n-1)</div>
+                    <div class="formula-explanation">
+                        计算所有图像向量的协方差矩阵，描述像素之间的相关性。
+                    </div>
+                </div>
+                
+                <div class="formula-box">
+                    <div class="formula-title">特征脸方程</div>
+                    <div class="formula">Cv = λv</div>
+                    <div class="formula-explanation">
+                        协方差矩阵的特征向量v就是特征脸，特征值λ表示该方向的重要性。
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" 
+                        onclick="calculatePCA()">
+                    🚀 开始PCA计算
+                </button>
+            </div>
+            
+            <!-- 实验步骤 -->
+            <div class="card">
+                <h2>📝 实验步骤</h2>
+                
+                <div class="experiment-steps">
+                    <div class="step active">
+                        <span class="step-number">1</span>
+                        <span class="step-title">选择表情数据</span>
+                        <div class="step-description">
+                            从左侧选择5-8个不同的表情，用于构建数据集。
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span class="step-title">计算平均脸</span>
+                        <div class="step-description">
+                            计算所有选定表情的平均表情，得到"平均脸"。
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span class="step-title">数据中心化</span>
+                        <div class="step-description">
+                            每个表情减去平均脸，得到中心化数据。
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">4</span>
+                        <span class="step-title">计算特征脸</span>
+                        <div class="step-description">
+                            计算协方差矩阵，求解特征向量（特征脸）。
+                        </div>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">5</span>
+                        <span class="step-title">表情重建</span>
+                        <div class="step-description">
+                            用特征脸线性组合重建原始表情，观察信息损失。
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-buttons">
+                    <button class="btn btn-secondary" onclick="prevStep()">
+                        ⏮️ 上一步
+                    </button>
+                    <button class="btn btn-primary" onclick="nextStep()">
+                        ⏭️ 下一步
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 表情重建实验 -->
+            <div class="card experiment-area">
+                <h2>🎨 表情重建实验</h2>
+                
+                <div class="experiment-canvas" id="reconstructionCanvas">
+                    <!-- 重建实验将通过JavaScript实现 -->
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h3 style="margin-bottom: 15px;">原始表情</h3>
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                            <div id="originalSmiley" style="font-size: 4rem; text-align: center;">😀</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 style="margin-bottom: 15px;">重建表情</h3>
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                            <div id="reconstructedSmiley" style="font-size: 4rem; text-align: center;">😐</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 style="margin-bottom: 15px;">重建误差</h3>
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                            <div id="reconstructionError" style="font-size: 2rem; text-align: center; color: var(--error-red);">
+                                0%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="parameter-control" style="margin-top: 25px;">
+                    <label class="parameter-label">
+                        使用特征脸数量: <span id="kValue">3</span>
+                    </label>
+                    <input type="range" min="1" max="10" value="3" class="slider" 
+                           id="kSlider" oninput="updateReconstruction(this.value)">
+                    <span class="slider-value" id="kRange">1-10</span>
+                </div>
+                
+                <div style="margin-top: 20px; color: #c0deff; font-size: 0.9rem;">
+                    <p>💡 提示：调整滑块，观察使用不同数量的特征脸对重建质量的影响。</p>
+                    <p>当使用所有特征脸时，可以完美重建原始表情。</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 页脚 -->
+        <footer class="lab-footer">
+            <h3>实验进度</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="goToAlpha()">
+                    ⬅️ 返回阿尔法星
+                </button>
+                <button class="btn btn-primary" onclick="goToGamma()">
+                    前往伽马星 ➡️
+                </button>
+            </div>
+            
+            <p style="margin-top: 20px; color: #a5d5ff; font-size: 0.9rem;">
+                💡 在理解笑脸PCA后，你将准备好学习完整的人脸识别PCA系统。
+            </p>
+        </footer>
+    </div>
+    
+    <!-- 简单可靠的JavaScript -->
+    <script>
+        // 贝塔星实验数据
+        const smileyData = {
+            happy: ['😀', '😃', '😄', '😁', '😆', '😊', '🙂', '😇'],
+            sad: ['😢', '😭', '😞', '😔', '😟', '😕', '🙁', '☹️'],
+            angry: ['😠', '😡', '🤬', '😤', '💢'],
+            surprised: ['😲', '😳', '😨', '😰', '😥', '😓'],
+            love: ['😍', '🥰', '😘', '😗', '😙', '😚'],
+            funny: ['😂', '🤣', '😜', '😝', '😛', '🤑', '🤗']
+        };
+        
+        let selectedSmileys = [];
+        let currentStep = 1;
+        let eigenfaces = [];
+        
+        // 初始化
+        function initBetaLab() {
+            console.log('贝塔星实验室初始化...');
+            populateSmileyGrid();
+            updateProgress();
+        }
+        
+        // 填充笑脸网格
+        function populateSmileyGrid() {
+            const grid = document.getElementById('smileyGrid');
+            grid.innerHTML = '';
+            
+            // 合并所有表情
+            const allSmileys = [];
+            for (const category in smileyData) {
+                allSmileys.push(...smileyData[category]);
+            }
+            
+            // 随机选择20个显示
+            const displaySmileys = [...allSmileys]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 20);
+            
+            displaySmileys.forEach((smiley, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'smiley-cell';
+                cell.textContent = smiley;
+                cell.title = `表情 ${index + 1}`;
+                
+                cell.onclick = () => toggleSmileySelection(cell, smiley);
+                
+                grid.appendChild(cell);
+            });
+        }
+        
+        // 切换表情选择
+        function toggleSmileySelection(cell, smiley) {
+            const index = selectedSmileys.indexOf(smiley);
+            
+            if (index === -1) {
+                if (selectedSmileys.length < 10) {
+                    selectedSmileys.push(smiley);
+                    cell.classList.add('selected');
+                } else {
+                    alert('最多只能选择10个表情！');
+                }
+            } else {
+                selectedSmileys.splice(index, 1);
+                cell.classList.remove('selected');
+            }
+            
+            updateSelectionStatus();
+        }
+        
+        // 随机选择表情
+        function selectRandomSmileys(count) {
+            clearSelection();
+            
+            const allSmileys = [];
+            for (const category in smileyData) {
+                allSmileys.push(...smileyData[category]);
+            }
+            
+            const randomSmileys = [...allSmileys]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, count);
+            
+            randomSmileys.forEach(smiley => {
+                selectedSmileys.push(smiley);
+            });
+            
+            // 更新UI
+            updateSelectionStatus();
+            
+            // 模拟选择动画
+            const cells = document.querySelectorAll('.smiley-cell');
+            cells.forEach((cell, index) => {
+                if (randomSmileys.includes(cell.textContent)) {
+                    setTimeout(() => {
+                        cell.classList.add('selected');
+                    }, index * 100);
+                }
+            });
+        }
+        
+        // 清空选择
+        function clearSelection() {
+            selectedSmileys = [];
+            document.querySelectorAll('.smiley-cell').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            updateSelectionStatus();
+        }
+        
+        // 更新选择状态
+        function updateSelectionStatus() {
+            const status = document.querySelector('.lab-header p');
+            if (status) {
+                status.textContent = `已选择 ${selectedSmileys.length} 个表情。需要至少3个才能进行PCA分析。`;
+            }
+        }
+        
+        // 加载选定表情
+        function loadSelectedSmileys() {
+            if (selectedSmileys.length < 3) {
+                alert('请至少选择3个表情！');
+                return;
+            }
+            
+            console.log('加载表情:', selectedSmileys);
+            
+            // 显示加载动画
+            const canvas = document.getElementById('eigenfaceCanvas');
+            canvas.innerHTML = '📊 计算中...';
+            
+            // 模拟PCA计算
+            setTimeout(() => {
+                generateEigenfaces();
+                currentStep = 2;
+                updateProgress();
+                updateSteps();
+                
+                // 显示第一个特征脸
+                changeEigenface(1);
+                
+                alert(`成功加载 ${selectedSmileys.length} 个表情！\n现在可以计算特征脸了。`);
+            }, 1500);
+        }
+        
+        // 生成特征脸（模拟）
+        function generateEigenfaces() {
+            eigenfaces = [];
+            
+            // 创建10个模拟特征脸
+            for (let i = 0; i < 10; i++) {
+                eigenfaces.push({
+                    number: i + 1,
+                    description: `特征脸 ${i + 1}`,
+                    variance: Math.random() * 20 + 10 // 模拟解释方差
+                });
+            }
+            
+            // 更新滑块
+            const slider = document.getElementById('eigenfaceSlider');
+            slider.max = eigenfaces.length;
+            
+            updateEigenfaceValue();
+        }
+        
+        // 更改特征脸显示
+        function changeEigenface(value) {
+            const number = parseInt(value);
+            const eigenface = eigenfaces[number - 1];
+            
+            if (!eigenface) return;
+            
+            document.getElementById('eigenfaceNumber').textContent = number;
+            document.getElementById('eigenfaceValue').textContent = `${number}/${eigenfaces.length}`;
+            
+            // 更新显示
+            const canvas = document.getElementById('eigenfaceCanvas');
+            const smileyIndex = (number % selectedSmileys.length) || 0;
+            
+            // 创建特征脸可视化（简化版本）
+            let displayHTML = '';
+            if (number === 1) {
+                displayHTML = '😐'; // 平均脸
+            } else if (number <= 3) {
+                displayHTML = selectedSmileys[smileyIndex];
+            } else {
+                // 更复杂的组合
+                const primaryIndex = number % selectedSmileys.length;
+                const secondaryIndex = (number * 2) % selectedSmileys.length;
+                displayHTML = `${selectedSmileys[primaryIndex]}${selectedSmileys[secondaryIndex]}`;
+            }
+            
+            canvas.innerHTML = `<div style="font-size: 5rem;">${displayHTML}</div>
+                               <div style="margin-top: 10px; font-size: 0.9rem; color: #c0deff;">
+                               特征脸 ${number}<br>
+                               解释方差: ${eigenface.variance.toFixed(1)}%
+                               </div>`;
+        }
+        
+        // 更改特征强度
+        function changeStrength(value) {
+            document.getElementById('strengthValue').textContent = `${value}%`;
+            
+            // 更新特征脸显示（如果有的话）
+            if (eigenfaces.length > 0) {
+                const currentEigenface = document.getElementById('eigenfaceSlider').value;
+                changeEigenface(currentEigenface);
+            }
+        }
+        
+        // 开始PCA计算
+        function calculatePCA() {
+            if (selectedSmileys.length < 3) {
+                alert('请先选择至少3个表情！');
+                return;
+            }
+            
+            // 显示计算动画
+            const originalBtn = document.querySelector('.btn-primary[onclick="calculatePCA()"]');
+            const originalText = originalBtn.textContent;
+            
+            originalBtn.innerHTML = '🔬 计算中...';
+            originalBtn.disabled = true;
+            
+            // 模拟PCA计算过程
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 20;
+                originalBtn.textContent = `🔬 计算中... ${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    
+                    // 完成计算
+                    originalBtn.innerHTML = '✅ 计算完成';
+                    originalBtn.disabled = false;
+                    
+                    // 生成特征脸
+                    generateEigenfaces();
+                    
+                    // 更新实验步骤
+                    currentStep = 4;
+                    updateProgress();
+                    updateSteps();
+                    
+                    // 显示结果
+                    setTimeout(() => {
+                        originalBtn.innerHTML = originalText;
+                        alert('PCA计算完成！\n已生成10个特征脸。\n尝试滑动特征脸滑块查看不同的特征脸。');
+                    }, 1000);
+                }
+            }, 300);
+        }
+        
+        // 更新重建
+        function updateReconstruction(k) {
+            const kValue = parseInt(k);
+            document.getElementById('kValue').textContent = kValue;
+            
+            // 显示重建效果
+            const original = document.getElementById('originalSmiley');
+            const reconstructed = document.getElementById('reconstructedSmiley');
+            const error = document.getElementById('reconstructionError');
+            
+            // 随机选择一个原始表情
+            const randomIndex = Math.floor(Math.random() * selectedSmileys.length);
+            const randomSmiley = selectedSmileys[randomIndex] || '😀';
+            original.innerHTML = randomSmiley;
+            
+            // 模拟重建效果
+            let reconstructedSmiley;
+            let errorValue;
+            
+            if (kValue >= 8) {
+                // 使用足够多特征脸，重建效果很好
+                reconstructedSmiley = randomSmiley;
+                errorValue = (Math.random() * 5).toFixed(1);
+            } else if (kValue >= 4) {
+                // 中等重建效果
+                reconstructedSmiley = randomSmiley + '?';
+                errorValue = (10 + Math.random() * 20).toFixed(1);
+            } else {
+                // 重建效果差
+                reconstructedSmiley = '😐';
+                errorValue = (30 + Math.random() * 40).toFixed(1);
+            }
+            
+            reconstructed.innerHTML = reconstructedSmiley;
+            error.textContent = `${errorValue}%`;
+            
+            // 颜色编码
+            if (parseFloat(errorValue) < 10) {
+                error.style.color = 'var(--success-green)';
+            } else if (parseFloat(errorValue) < 30) {
+                error.style.color = 'var(--smiley-yellow)';
+            } else {
+                error.style.color = 'var(--error-red)';
+            }
+        }
+        
+        // 实验步骤控制
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateProgress();
+                updateSteps();
+            }
+        }
+        
+        function nextStep() {
+            if (currentStep < 5) {
+                currentStep++;
+                updateProgress();
+                updateSteps();
+            }
+        }
+        
+        function updateSteps() {
+            document.querySelectorAll('.step').forEach((step, index) => {
+                if (index + 1 === currentStep) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+        
+        function updateProgress() {
+            const progress = (currentStep / 5) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+        }
+        
+        function updateEigenfaceValue() {
+            const slider = document.getElementById('eigenfaceSlider');
+            if (slider) {
+                document.getElementById('eigenfaceValue').textContent = 
+                    `${slider.value}/${slider.max}`;
+            }
+        }
+        
+        // 导航函数
+        function goToAlpha() {
+            window.location.href = '../planet101/index.html';
+        }
+        
+        function goToGamma() {
+            window.location.href = '../planet103/index.html';
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            initBetaLab();
+            
+            // 初始化重建实验
+            updateReconstruction(3);
+            
+            // 添加快捷键
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    window.location.href = '../../index.html';
+                } else if (e.key === 'ArrowLeft') {
+                    prevStep();
+                } else if (e.key === 'ArrowRight') {
+                    nextStep();
+                } else if (e.key === 'a') {
+                    goToAlpha();
+                } else if (e.key === 'g') {
+                    goToGamma();
+                }
+            });
+            
+            // 添加键盘提示
+            setTimeout(() => {
+                const hint = document.createElement('div');
+                hint.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(25, 35, 70, 0.9);
+                    color: #a5d5ff;
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    border: 1px solid rgba(100, 180, 255, 0.2);
+                    z-index: 100;
+                `;
+                hint.innerHTML = '💡 快捷键:<br>' +
+                               'ESC: 返回主页<br>' +
+                               '←/→: 切换步骤<br>' +
+                               'A: 阿尔法星<br>' +
+                               'G: 伽马星';
+                document.body.appendChild(hint);
+                
+                setTimeout(() => hint.remove(), 8000);
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

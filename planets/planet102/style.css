@@ -1,0 +1,614 @@
+/* 笑脸PCA实验室 - 简洁版样式 */
+
+/* 基础样式 */
+:root {
+    --primary: #4facfe;
+    --primary-dark: #3d8bf0;
+    --success: #4ecdc4;
+    --warning: #ffd166;
+    --danger: #ff6b6b;
+    --dark: #2a2a3c;
+    --light: #f8f9fa;
+    --gray: #6c757d;
+    --border: #dee2e6;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+    min-height: 90vh;
+}
+
+/* 顶部导航 */
+.main-header {
+    background: linear-gradient(to right, var(--primary), var(--success));
+    color: white;
+    padding: 25px 30px;
+    border-bottom: 5px solid var(--warning);
+}
+
+.main-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 25px;
+}
+
+.lab-nav {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.nav-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.nav-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+}
+
+.nav-btn.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* 实验室内容区 */
+.lab-content {
+    padding: 30px;
+}
+
+.lab-section {
+    display: none;
+}
+
+.lab-section.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.lab-header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border);
+}
+
+.lab-header h2 {
+    color: var(--dark);
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.lab-description {
+    color: var(--gray);
+    font-size: 1.1rem;
+}
+
+/* 实验区域 */
+.experiment-area {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 1200px) {
+    .experiment-area {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 面板通用样式 */
+.panel {
+    background: var(--light);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+}
+
+.panel h3 {
+    color: var(--dark);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 笑脸展示 */
+.smiley-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.smiley-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.smiley-label {
+    min-width: 60px;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* 像素网格 */
+.pixel-grid, .interactive-grid, .grid-mini,
+.target-grid, .synthesis-grid, .original-grid,
+.reconstruction-grid, .difference-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 1px;
+    width: 120px;
+    height: 120px;
+    background: #e9ecef;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+.grid-mini {
+    width: 80px;
+    height: 80px;
+}
+
+.pixel {
+    background: white;
+    border-radius: 2px;
+    transition: background-color 0.3s;
+}
+
+.pixel.active {
+    background: var(--danger);
+}
+
+.pixel.selected {
+    background: var(--primary);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* 交互网格 */
+.interactive-grid {
+    margin: 15px 0;
+    cursor: pointer;
+}
+
+.interactive-grid .pixel:hover {
+    background: #ddd;
+}
+
+/* 步骤样式 */
+.step {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed var(--border);
+}
+
+.step:last-child {
+    border-bottom: none;
+}
+
+.step h4 {
+    color: var(--dark);
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.step p {
+    color: var(--gray);
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+/* 按钮样式 */
+.btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.primary-btn {
+    background: var(--primary);
+    color: white;
+}
+
+.primary-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+}
+
+.secondary-btn {
+    background: white;
+    color: var(--dark);
+    border: 2px solid var(--border);
+}
+
+.secondary-btn:hover {
+    background: var(--light);
+    border-color: var(--primary);
+}
+
+.small-btn {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+
+.choice-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.choice-btn {
+    padding: 10px 20px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.choice-btn:hover {
+    border-color: var(--primary);
+    background: #f0f8ff;
+}
+
+.choice-btn.selected {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* 选择信息 */
+.selection-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 0.95rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+/* 结果区域 */
+.result-area {
+    animation: slideUp 0.5s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.score-display {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.score-circle {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary), var(--success));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+}
+
+.comparison {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.comparison-item {
+    text-align: center;
+}
+
+.comparison-item h5 {
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.learning-points {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid var(--success);
+}
+
+.learning-points h5 {
+    color: var(--dark);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 实验室2样式 */
+.slider-group {
+    margin-bottom: 25px;
+}
+
+.slider-item {
+    margin-bottom: 20px;
+}
+
+.slider-item label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: var(--dark);
+    font-weight: 500;
+}
+
+.slider-item input[type="range"] {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.slider-item input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--primary-dark);
+}
+
+.formula-box {
+    background: #f0f8ff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #cce5ff;
+    margin-top: 20px;
+}
+
+.metrics {
+    margin-top: 20px;
+}
+
+.metric {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.metric span:first-child {
+    min-width: 60px;
+    color: var(--dark);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--success);
+    transition: width 0.5s ease;
+}
+
+.progress-fill.error {
+    background: var(--danger);
+}
+
+/* 实验室3样式 */
+.k-control {
+    margin-bottom: 25px;
+}
+
+.k-control label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--dark);
+    font-weight: 500;
+}
+
+.k-control input[type="range"] {
+    width: 100%;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.metric-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    border: 1px solid var(--border);
+}
+
+.metric-title {
+    font-size: 0.9rem;
+    color: var(--gray);
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--dark);
+}
+
+.difference-grid {
+    margin-top: 20px;
+}
+
+.hint {
+    font-size: 0.9rem;
+    color: var(--gray);
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* 底部信息 */
+.main-footer {
+    background: var(--dark);
+    color: white;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px;
+}
+
+.link-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.link-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        border-radius: 10px;
+    }
+    
+    .main-header {
+        padding: 20px;
+    }
+    
+    .main-header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .lab-nav {
+        flex-direction: column;
+    }
+    
+    .lab-content {
+        padding: 20px;
+    }
+    
+    .experiment-area {
+        grid-template-columns: 1fr;
+    }
+    
+    .panel {
+        padding: 20px;
+    }
+    
+    .main-footer {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .footer-links {
+        justify-content: center;
+    }
+}

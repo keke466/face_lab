@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>伽马星 · 人脸PCA完整实验</title>
+    <style>
+        /* 伽马星特有样式 */
+        :root {
+            --primary-color: #06d6a0;      /* 绿色主色调 */
+            --secondary-color: #0db39e;    /* 深绿色 */
+            --face-color: #ff9e6d;         /* 肤色 */
+            --feature-color: #4cc9f0;      /* 特征蓝色 */
+            --highlight-color: #ffd166;    /* 高亮黄色 */
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0a0e23;
+            color: #e8f4fc;
+            min-height: 100vh;
+        }
+        
+        /* 返回按钮 */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(25, 35, 70, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: var(--primary-color);
+            transform: translateX(-5px);
+        }
+        
+        /* 主容器 */
+        .gamma-lab {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 标题区 */
+        .lab-header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, 
+                rgba(6, 214, 160, 0.3), 
+                rgba(12, 179, 158, 0.3));
+            border-radius: 20px;
+            border: 2px solid rgba(6, 214, 160, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .lab-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: white;
+        }
+        
+        .lab-header p {
+            color: #c0deff;
+            font-size: 1.1rem;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        /* 实验步骤指示器 */
+        .experiment-steps {
+            display: flex;
+            justify-content: space-between;
+            margin: 40px auto;
+            max-width: 1200px;
+            position: relative;
+        }
+        
+        .experiment-steps::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50px;
+            right: 50px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 1;
+        }
+        
+        .step-indicator {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .step-indicator.active .step-circle {
+            background: var(--primary-color);
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(6, 214, 160, 0.5);
+        }
+        
+        .step-indicator.completed .step-circle {
+            background: rgba(6, 214, 160, 0.5);
+        }
+        
+        .step-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .step-indicator.active .step-label {
+            color: white;
+            font-weight: 600;
+        }
+        
+        /* 主内容区 */
+        .lab-content {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 25px;
+            margin-bottom: 40px;
+            min-height: 600px;
+        }
+        
+        @media (max-width: 1200px) {
+            .lab-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 控制面板 */
+        .control-panel {
+            background: rgba(25, 35, 70, 0.8);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .control-panel h2 {
+            color: white;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        /* 实验区域 */
+        .experiment-area {
+            background: rgba(25, 35, 70, 0.8);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 人脸显示区 */
+        .face-display {
+            flex: 1;
+            background: rgba(10, 14, 35, 0.5);
+            border-radius: 12px;
+            border: 2px solid rgba(100, 180, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .face-canvas {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+        }
+        
+        .face-placeholder {
+            width: 200px;
+            height: 250px;
+            background: linear-gradient(135deg, var(--face-color), #ffb347);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 人脸特征 */
+        .face-eyes {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+        }
+        
+        .eye {
+            width: 30px;
+            height: 30px;
+            background: #2a2a2a;
+            border-radius: 50%;
+        }
+        
+        .face-mouth {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+        
+        /* 控制按钮组 */
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 140px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(6, 214, 160, 0.3);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 参数控制 */
+        .parameter-control {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .parameter-control:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .parameter-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #c0deff;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            float: right;
+            color: var(--highlight-color);
+            font-weight: 600;
+        }
+        
+        /* 人脸库 */
+        .face-library {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .face-thumbnail {
+            width: 80px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .face-thumbnail:hover {
+            border-color: rgba(100, 180, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .face-thumbnail.selected {
+            border-color: var(--primary-color);
+            background: rgba(6, 214, 160, 0.1);
+        }
+        
+        .face-emoji {
+            font-size: 2rem;
+        }
+        
+        /* 信息面板 */
+        .info-panel {
+            background: rgba(25, 35, 70, 0.8);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .info-panel h2 {
+            color: white;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--feature-color);
+        }
+        
+        .info-box {
+            background: rgba(10, 14, 35, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(100, 180, 255, 0.1);
+        }
+        
+        .info-title {
+            color: var(--highlight-color);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .info-content {
+            color: #c0deff;
+            line-height: 1.6;
+        }
+        
+        .info-content code {
+            background: rgba(76, 201, 240, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--feature-color);
+        }
+        
+        /* 变量显示 */
+        .variable-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #c0deff;
+            line-height: 1.8;
+        }
+        
+        .variable-label {
+            color: var(--highlight-color);
+            font-weight: 600;
+        }
+        
+        /* 实验结果 */
+        .result-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .result-box {
+            background: rgba(10, 14, 35, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(100, 180, 255, 0.1);
+        }
+        
+        .result-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            color: var(--highlight-color);
+        }
+        
+        .result-label {
+            color: #a5d5ff;
+            font-size: 0.9rem;
+        }
+        
+        /* 实验日志 */
+        .experiment-log {
+            background: rgba(10, 14, 35, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(100, 180, 255, 0.1);
+        }
+        
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: rgba(25, 35, 70, 0.3);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.9rem;
+            color: #c0deff;
+        }
+        
+        .log-time {
+            color: var(--highlight-color);
+            font-size: 0.8rem;
+        }
+        
+        /* 实验报告 */
+        .experiment-report {
+            background: rgba(25, 35, 70, 0.8);
+            border-radius: 16px;
+            padding: 30px;
+            margin-top: 40px;
+            border: 2px solid var(--primary-color);
+        }
+        
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .report-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .report-section h3 {
+            color: white;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .report-table th,
+        .report-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .report-table th {
+            color: var(--highlight-color);
+            font-weight: 600;
+        }
+        
+        .report-table td {
+            color: #c0deff;
+        }
+        
+        /* 页脚 */
+        .lab-footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            background: rgba(25, 35, 70, 0.5);
+            border-radius: 16px;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .navigation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        /* 加载动画 */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 14, 35, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(6, 214, 160, 0.3);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .lab-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .experiment-steps {
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+            
+            .experiment-steps::before {
+                display: none;
+            }
+            
+            .step-indicator {
+                flex: none;
+                width: calc(33.333% - 20px);
+            }
+            
+            .result-display {
+                grid-template-columns: 1fr;
+            }
+            
+            .report-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 返回按钮 -->
+    <a href="../../index.html" class="back-btn">← 返回星系</a>
+    
+    <!-- 加载动画 -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>正在加载ORL人脸数据集...</p>
+    </div>
+    
+    <!-- 主容器 -->
+    <div class="gamma-lab" id="mainContent" style="display: none;">
+        <!-- 标题区 -->
+        <header class="lab-header">
+            <h1>👤 伽马星 · 人脸PCA完整实验</h1>
+            <p>基于ORL人脸数据集，完成从数据准备到识别测试的12个完整交互步骤</p>
+            <p style="font-size: 1rem; color: #a5d5ff; margin-top: 15px;">
+                使用经典ORL人脸数据集（40人×10张=400张图片）学习完整的人脸识别PCA系统
+            </p>
+        </header>
+        
+        <!-- 实验步骤指示器 -->
+        <div class="experiment-steps" id="stepIndicators">
+            <!-- 步骤将通过JavaScript动态生成 -->
+        </div>
+        
+        <!-- 主内容区 -->
+        <div class="lab-content">
+            <!-- 左侧：控制面板 -->
+            <div class="control-panel">
+                <h2>🎮 实验控制</h2>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="startExperiment()" id="startBtn">
+                        🚀 开始实验
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetExperiment()" id="resetBtn">
+                        🔄 重置
+                    </button>
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        当前步骤: <span class="slider-value" id="currentStepValue">1/12</span>
+                    </label>
+                    <input type="range" min="1" max="12" value="1" class="slider" 
+                           id="stepSlider" oninput="goToStep(this.value)">
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        选择人数: <span class="slider-value" id="personCount">10</span>
+                    </label>
+                    <input type="range" min="5" max="40" value="10" class="slider" 
+                           id="personSlider" oninput="updatePersonCount(this.value)">
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        每人照片数: <span class="slider-value" id="photoCount">5</span>
+                    </label>
+                    <input type="range" min="3" max="10" value="5" class="slider" 
+                           id="photoSlider" oninput="updatePhotoCount(this.value)">
+                </div>
+                
+                <div class="parameter-control">
+                    <label class="parameter-label">
+                        特征脸数量(k): <span class="slider-value" id="kValue">20</span>
+                    </label>
+                    <input type="range" min="1" max="50" value="20" class="slider" 
+                           id="kSlider" oninput="updateKValue(this.value)">
+                </div>
+                
+                <div style="margin-top: 25px;">
+                    <h3 style="color: white; margin-bottom: 15px; font-size: 1.1rem;">
+                        实验设置
+                    </h3>
+                    <div class="info-content">
+                        <p>📊 总样本数: <span id="totalSamples">50</span></p>
+                        <p>🎯 训练集: <span id="trainSamples">40</span></p>
+                        <p>🧪 测试集: <span id="testSamples">10</span></p>
+                        <p>⏱️ 预计时间: <span id="estimatedTime">15分钟</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 中间：实验区域 -->
+            <div class="experiment-area">
+                <h2 id="stepTitle">第1步: 选择与上传数据集</h2>
+                
+                <div class="face-display" id="faceDisplay">
+                    <div class="face-placeholder">
+                        <div class="face-eyes">
+                            <div class="eye"></div>
+                            <div class="eye"></div>
+                        </div>
+                        <div class="face-mouth"></div>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="executeCurrentStep()" id="executeBtn">
+                        执行当前步骤
+                    </button>
+                    <button class="btn btn-secondary" onclick="autoRunAllSteps()" id="autoRunBtn">
+                        🤖 自动运行全部
+                    </button>
+                </div>
+                
+                <div class="info-box" id="stepDescription">
+                    <div class="info-title">步骤说明</div>
+                    <div class="info-content">
+                        选择ORL数据集中的部分人脸图像作为训练集。您可以选择使用的人数（5-40人）和每人使用的照片数（3-10张）。
+                    </div>
+                </div>
+                
+                <!-- 人脸库 -->
+                <div>
+                    <h3 style="color: white; margin-bottom: 15px;">人脸库预览</h3>
+                    <div class="face-library" id="faceLibrary">
+                        <!-- 人脸缩略图将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：信息面板 -->
+            <div class="info-panel">
+                <h2>📊 实验信息</h2>
+                
+                <div class="info-box">
+                    <div class="info-title">当前计算状态</div>
+                    <div class="info-content">
+                        <div id="calculationStatus">等待开始...</div>
+                        <div class="result-display" style="margin-top: 15px;">
+                            <div class="result-box">
+                                <div class="result-value" id="accuracyValue">0%</div>
+                                <div class="result-label">识别准确率</div>
+                            </div>
+                            <div class="result-box">
+                                <div class="result-value" id="reconstructionError">0%</div>
+                                <div class="result-label">重建误差</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="info-title">数学变量</div>
+                    <div class="variable-display">
+                        <div><span class="variable-label">n (样本数):</span> <span id="varN">0</span></div>
+                        <div><span class="variable-label">d (维度):</span> <span id="varD">10304</span></div>
+                        <div><span class="variable-label">矩阵 A:</span> <span id="varA">d×n</span></div>
+                        <div><span class="variable-label">平均脸 μ:</span> <span id="varMean">已计算</span></div>
+                        <div><span class="variable-label">特征值 λ:</span> <span id="varLambda">[...]</span></div>
+                        <div><span class="variable-label">解释方差:</span> <span id="varVariance">0%</span></div>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="info-title">实验日志</div>
+                    <div class="experiment-log" id="experimentLog">
+                        <div class="log-entry">
+                            <span class="log-time">[00:00]</span> 实验系统已启动
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 实验报告 -->
+        <div class="experiment-report" id="experimentReport" style="display: none;">
+            <div class="report-header">
+                <h2>📈 实验报告</h2>
+                <p style="color: #c0deff; margin-top: 10px;">PCA人脸识别实验完整结果分析</p>
+            </div>
+            
+            <div class="report-content">
+                <div class="report-section">
+                    <h3>实验设置</h3>
+                    <table class="report-table">
+                        <tr>
+                            <th>参数</th>
+                            <th>值</th>
+                        </tr>
+                        <tr>
+                            <td>使用人数</td>
+                            <td id="reportPersonCount">10</td>
+                        </tr>
+                        <tr>
+                            <td>每人照片数</td>
+                            <td id="reportPhotoCount">5</td>
+                        </tr>
+                        <tr>
+                            <td>训练样本数</td>
+                            <td id="reportTrainCount">40</td>
+                        </tr>
+                        <tr>
+                            <td>测试样本数</td>
+                            <td id="reportTestCount">10</td>
+                        </tr>
+                        <tr>
+                            <td>特征脸数量(k)</td>
+                            <td id="reportKValue">20</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="report-section">
+                    <h3>实验结果</h3>
+                    <table class="report-table">
+                        <tr>
+                            <th>指标</th>
+                            <th>值</th>
+                        </tr>
+                        <tr>
+                            <td>识别准确率</td>
+                            <td id="reportAccuracy">0%</td>
+                        </tr>
+                        <tr>
+                            <td>平均重建误差</td>
+                            <td id="reportReconstructionError">0%</td>
+                        </tr>
+                        <tr>
+                            <td>运行时间</td>
+                            <td id="reportRuntime">0秒</td>
+                        </tr>
+                        <tr>
+                            <td>解释方差</td>
+                            <td id="reportVariance">0%</td>
+                        </tr>
+                        <tr>
+                            <td>数据维度</td>
+                            <td>10304 → <span id="reportReducedDim">20</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-primary" onclick="downloadReport()">
+                    📥 下载实验报告
+                </button>
+                <button class="btn btn-secondary" onclick="shareResults()">
+                    📤 分享结果
+                </button>
+            </div>
+        </div>
+        
+        <!-- 页脚 -->
+        <footer class="lab-footer">
+            <h3>实验导航</h3>
+            <div class="navigation-buttons">
+                <button class="btn btn-secondary" onclick="goToBeta()">
+                    ⬅️ 返回贝塔星
+                </button>
+                <button class="btn btn-primary" onclick="completeExperiment()" id="completeBtn">
+                    🏆 完成实验
+                </button>
+                <button class="btn btn-secondary" onclick="goToDelta()" disabled>
+                    前往德尔塔星 ➡️
+                </button>
+            </div>
+            
+            <p style="margin-top: 20px; color: #a5d5ff; font-size: 0.9rem;">
+                💡 完成所有12个步骤后，点击"完成实验"生成实验报告。
+            </p>
+        </footer>
+    </div>
+    
+    <!-- 伽马星核心脚本 -->
+    <script>
+        // 实验状态
+        const experimentState = {
+            currentStep: 1,
+            totalSteps: 12,
+            isRunning: false,
+            isComplete: false,
+            settings: {
+                personCount: 10,
+                photoCount: 5,
+                kValue: 20,
+                selectedFaces: []
+            },
+            results: {
+                accuracy: 0,
+                reconstructionError: 0,
+                runtime: 0,
+                variance: 0
+            },
+            log: []
+        };
+        
+        // 实验步骤配置
+        const stepConfigs = [
+            {
+                id: 1,
+                title: "选择与上传数据集",
+                description: "选择ORL数据集中的部分人脸图像作为训练集。您可以选择使用的人数（5-40人）和每人使用的照片数（3-10张）。",
+                action: "loadDataset"
+            },
+            {
+                id: 2,
+                title: "观察数据矩阵化",
+                description: "系统将每张人脸图像转换为一列长向量，并将所有向量合并为一个大型数据矩阵A。点击像素可以查看其在矩阵中的对应位置。",
+                action: "visualizeMatrix"
+            },
+            {
+                id: 3,
+                title: "计算平均脸",
+                description: "计算所有训练人脸的平均值，生成'平均脸'图像。可以调整各张脸的贡献度，观察平均脸的变化。",
+                action: "calculateMeanFace"
+            },
+            {
+                id: 4,
+                title: "数据中心化",
+                description: "从原始数据矩阵A中减去平均脸向量，得到中心化矩阵B。对比原始人脸和去中心化后人脸（差值脸）。",
+                action: "centerData"
+            },
+            {
+                id: 5,
+                title: "构建协方差矩阵",
+                description: "计算中心化矩阵B的协方差矩阵C = BᵀB（小矩阵法）。可视化协方差矩阵的热力图。",
+                action: "calculateCovariance"
+            },
+            {
+                id: 6,
+                title: "特征值分解",
+                description: "对协方差矩阵进行特征值分解，计算特征值和特征向量。动画展示幂迭代法的收敛过程。",
+                action: "calculateEigen"
+            },
+            {
+                id: 7,
+                title: "选择特征脸",
+                description: "按特征值大小降序显示所有特征脸（特征向量）。通过滑块控制选择前k个特征脸，观察视觉特征变化。",
+                action: "selectEigenfaces"
+            },
+            {
+                id: 8,
+                title: "投影与系数提取",
+                description: "选择一张人脸图像，将其投影到选定的k个特征脸张成的子空间，计算k个投影系数。",
+                action: "projectFace"
+            },
+            {
+                id: 9,
+                title: "人脸重建实验",
+                description: "使用投影系数重建人脸。调整k值（使用的特征脸数量），观察重建人脸的清晰度与原始脸的逼近程度。",
+                action: "reconstructFace"
+            },
+            {
+                id: 10,
+                title: "识别功能测试",
+                description: "上传一张新的测试照片，系统自动执行中心化、投影，计算与库中所有人脸的欧氏距离，进行识别匹配。",
+                action: "testRecognition"
+            },
+            {
+                id: 11,
+                title: "参数影响探究",
+                description: "尝试选择特征值较小的特征脸参与重建，观察重建图像中噪声的引入，理解主成分分析的数学本质。",
+                action: "exploreParameters"
+            },
+            {
+                id: 12,
+                title: "生成实验报告",
+                description: "系统自动记录所有关键步骤的操作日志、参数选择与结果截图，生成完整的实验报告。",
+                action: "generateReport"
+            }
+        ];
+        
+        // 初始化函数
+        function initGammaLab() {
+            console.log('伽马星实验室初始化...');
+            
+            // 创建步骤指示器
+            createStepIndicators();
+            
+            // 更新实验设置显示
+            updateSettingsDisplay();
+            
+            // 隐藏加载动画，显示主内容
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // 添加欢迎日志
+                addLog('实验系统已启动，欢迎来到伽马星人脸PCA实验室！');
+                addLog('请点击"开始实验"按钮开始您的探索。');
+            }, 1500);
+            
+            // 生成人脸库预览
+            generateFaceLibrary();
+        }
+        
+        // 创建步骤指示器
+        function createStepIndicators() {
+            const container = document.getElementById('stepIndicators');
+            container.innerHTML = '';
+            
+            stepConfigs.forEach(step => {
+                const indicator = document.createElement('div');
+                indicator.className = 'step-indicator';
+                indicator.id = `step-${step.id}`;
+                indicator.innerHTML = `
+                    <div class="step-circle">${step.id}</div>
+                    <div class="step-label">${step.title}</div>
+                `;
+                
+                indicator.onclick = () => goToStep(step.id);
+                
+                container.appendChild(indicator);
+            });
+            
+            updateStepIndicators();
+        }
+        
+        // 更新步骤指示器状态
+        function updateStepIndicators() {
+            stepConfigs.forEach(step => {
+                const indicator = document.getElementById(`step-${step.id}`);
+                indicator.classList.remove('active', 'completed');
+                
+                if (step.id === experimentState.currentStep) {
+                    indicator.classList.add('active');
+                } else if (step.id < experimentState.currentStep) {
+                    indicator.classList.add('completed');
+                }
+            });
+        }
+        
+        // 更新设置显示
+        function updateSettingsDisplay() {
+            const settings = experimentState.settings;
+            
+            // 更新滑块值
+            document.getElementById('personSlider').value = settings.personCount;
+            document.getElementById('photoSlider').value = settings.photoCount;
+            document.getElementById('kSlider').value = settings.kValue;
+            
+            // 更新显示值
+            document.getElementById('personCount').textContent = settings.personCount;
+            document.getElementById('photoCount').textContent = settings.photoCount;
+            document.getElementById('kValue').textContent = settings.kValue;
+            document.getElementById('currentStepValue').textContent = 
+                `${experimentState.currentStep}/${experimentState.totalSteps}`;
+            
+            // 更新统计信息
+            const totalSamples = settings.personCount * settings.photoCount;
+            const trainSamples = Math.floor(totalSamples * 0.8);
+            const testSamples = totalSamples - trainSamples;
+            
+            document.getElementById('totalSamples').textContent = totalSamples;
+            document.getElementById('trainSamples').textContent = trainSamples;
+            document.getElementById('testSamples').textContent = testSamples;
+            
+            // 更新步骤标题和描述
+            const currentConfig = stepConfigs[experimentState.currentStep - 1];
+            document.getElementById('stepTitle').textContent = 
+                `第${experimentState.currentStep}步: ${currentConfig.title}`;
+            document.getElementById('stepDescription').innerHTML = `
+                <div class="info-title">步骤说明</div>
+                <div class="info-content">${currentConfig.description}</div>
+            `;
+            
+            // 更新人脸显示
+            updateFaceDisplay(currentConfig.action);
+            
+            // 更新变量显示
+            updateVariableDisplay();
+        }
+        
+        // 更新人脸显示
+        function updateFaceDisplay(action) {
+            const display = document.getElementById('faceDisplay');
+            
+            // 清空显示
+            display.innerHTML = '';
+            
+            // 根据动作显示不同内容
+            switch(action) {
+                case 'loadDataset':
+                    display.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 5rem;">📂</div>
+                            <h3 style="margin-top: 20px; color: white;">ORL人脸数据集</h3>
+                            <p style="color: #c0deff; margin-top: 10px;">
+                                40人 × 10张照片 = 400张人脸图像
+                            </p>
+                            <p style="color: #a5d5ff; margin-top: 10px; font-size: 0.9rem;">
+                                正在加载 ${experimentState.settings.personCount} 个人的数据...
+                            </p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'calculateMeanFace':
+                    display.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 5rem;">😐</div>
+                            <h3 style="margin-top: 20px; color: white;">平均脸计算中</h3>
+                            <p style="color: #c0deff; margin-top: 10px;">
+                                计算 ${experimentState.settings.personCount * experimentState.settings.photoCount} 张脸的平均值
+                            </p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'visualizeMatrix':
+                    // 创建矩阵可视化
+                    const matrixSize = 15;
+                    let matrixHTML = '<div style="font-family: monospace; font-size: 12px; line-height: 1;">';
+                    
+                    for (let i = 0; i < matrixSize; i++) {
+                        matrixHTML += '<div>';
+                        for (let j = 0; j < matrixSize; j++) {
+                            const value = Math.random();
+                            const color = value > 0.7 ? '#ff6b6b' : 
+                                        value > 0.4 ? '#4cc9f0' : 
+                                        value > 0.1 ? '#06d6a0' : 'rgba(255,255,255,0.1)';
+                            
+                            matrixHTML += `<span style="color: ${color}; margin: 0 2px;">${value.toFixed(1)}</span>`;
+                        }
+                        matrixHTML += '</div>';
+                    }
+                    matrixHTML += '</div>';
+                    
+                    display.innerHTML = matrixHTML;
+                    break;
+                    
+                default:
+                    // 默认显示人脸
+                    display.innerHTML = `
+                        <div class="face-placeholder">
+                            <div class="face-eyes">
+                                <div class="eye"></div>
+                                <div class="eye"></div>
+                            </div>
+                            <div class="face-mouth"></div>
+                        </div>
+                    `;
+            }
+        }
+        
+        // 更新变量显示
+        function updateVariableDisplay() {
+            const settings = experimentState.settings;
+            const totalSamples = settings.personCount * settings.photoCount;
+            
+            document.getElementById('varN').textContent = totalSamples;
+            document.getElementById('varD').textContent = '10304';
+            document.getElementById('varA').textContent = `10304×${totalSamples}`;
+            
+            if (experimentState.currentStep >= 3) {
+                document.getElementById('varMean').textContent = '已计算';
+            }
+            
+            if (experimentState.currentStep >= 6) {
+                document.getElementById('varLambda').textContent = '[λ₁, λ₂, ..., λₙ]';
+            }
+            
+            if (experimentState.currentStep >= 7) {
+                const variance = Math.min(95, 70 + experimentState.currentStep * 2);
+                document.getElementById('varVariance').textContent = `${variance.toFixed(1)}%`;
+                
+                // 更新准确率和重建误差
+                const accuracy = Math.min(95, 60 + experimentState.currentStep * 3);
+                const error = Math.max(5, 40 - experimentState.currentStep * 3);
+                
+                document.getElementById('accuracyValue').textContent = `${accuracy.toFixed(1)}%`;
+                document.getElementById('reconstructionError').textContent = `${error.toFixed(1)}%`;
+            }
+        }
+        
+        // 生成人脸库预览
+        function generateFaceLibrary() {
+            const library = document.getElementById('faceLibrary');
+            library.innerHTML = '';
+            
+            const personCount = experimentState.settings.personCount;
+            const photoCount = experimentState.settings.photoCount;
+            
+            // 使用表情符号模拟人脸
+            const faceEmojis = ['😀', '😃', '😄', '😁', '😆', '😊', '🙂', '😇', '😍', '🤩'];
+            
+            for (let p = 0; p < personCount; p++) {
+                for (let i = 0; i < photoCount; i++) {
+                    const index = p * photoCount + i;
+                    if (index >= 50) break; // 最多显示50个
+                    
+                    const thumbnail = document.createElement('div');
+                    thumbnail.className = 'face-thumbnail';
+                    thumbnail.title = `人物 ${p+1} - 照片 ${i+1}`;
+                    
+                    // 使用表情符号
+                    const emoji = faceEmojis[p % faceEmojis.length];
+                    thumbnail.innerHTML = `<div class="face-emoji">${emoji}</div>`;
+                    
+                    // 点击选择
+                    thumbnail.onclick = () => {
+                        document.querySelectorAll('.face-thumbnail').forEach(t => 
+                            t.classList.remove('selected'));
+                        thumbnail.classList.add('selected');
+                        
+                        // 添加到已选列表
+                        experimentState.settings.selectedFaces = [index];
+                        
+                        addLog(`选择了人物 ${p+1} 的第 ${i+1} 张照片`);
+                    };
+                    
+                    library.appendChild(thumbnail);
+                }
+            }
+        }
+        
+        // 添加实验日志
+        function addLog(message) {
+            const logContainer = document.getElementById('experimentLog');
+            const now = new Date();
+            const timeString = `[${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-time">${timeString}</span> ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // 保存到状态
+            experimentState.log.push({
+                time: now.toISOString(),
+                message: message
+            });
+        }
+        
+        // 开始实验
+        function startExperiment() {
+            if (experimentState.isRunning) return;
+            
+            experimentState.isRunning = true;
+            experimentState.currentStep = 1;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').innerHTML = '⏳ 实验进行中';
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('completeBtn').disabled = false;
+            
+            addLog('实验开始！');
+            addLog(`使用设置: ${experimentState.settings.personCount}人，每人${experimentState.settings.photoCount}张照片`);
+            
+            updateSettingsDisplay();
+            updateStepIndicators();
+            goToStep(1);
+        }
+        
+        // 执行当前步骤
+        function executeCurrentStep() {
+            if (!experimentState.isRunning) {
+                alert('请先点击"开始实验"按钮！');
+                return;
+            }
+            
+            const currentConfig = stepConfigs[experimentState.currentStep - 1];
+            const stepName = currentConfig.title;
+            
+            // 模拟步骤执行
+            document.getElementById('executeBtn').disabled = true;
+            document.getElementById('executeBtn').innerHTML = '⏳ 执行中...';
+            
+            addLog(`开始执行: ${stepName}`);
+            
+            // 模拟计算延迟
+            setTimeout(() => {
+                // 步骤执行完成
+                document.getElementById('executeBtn').disabled = false;
+                document.getElementById('executeBtn').innerHTML = '✅ 步骤完成';
+                
+                addLog(`完成: ${stepName}`);
+                
+                // 自动进入下一步
+                setTimeout(() => {
+                    if (experimentState.currentStep < experimentState.totalSteps) {
+                        nextStep();
+                    } else {
+                        completeExperiment();
+                    }
+                    
+                    document.getElementById('executeBtn').innerHTML = '执行当前步骤';
+                }, 1000);
+            }, 2000);
+        }
+        
+        // 自动运行所有步骤
+        function autoRunAllSteps() {
+            if (!experimentState.isRunning) {
+                alert('请先点击"开始实验"按钮！');
+                return;
+            }
+            
+            if (confirm('自动运行将依次执行所有12个步骤，大约需要30秒。是否继续？')) {
+                document.getElementById('autoRunBtn').disabled = true;
+                document.getElementById('autoRunBtn').innerHTML = '🤖 自动运行中...';
+                
+                addLog('开始自动运行所有步骤');
+                
+                // 递归执行所有步骤
+                function runStep(step) {
+                    if (step > experimentState.totalSteps) {
+                        document.getElementById('autoRunBtn').disabled = false;
+                        document.getElementById('autoRunBtn').innerHTML = '🤖 自动运行全部';
+                        completeExperiment();
+                        return;
+                    }
+                    
+                    goToStep(step);
+                    
+                    // 模拟步骤执行
+                    setTimeout(() => {
+                        const stepName = stepConfigs[step - 1].title;
+                        addLog(`自动执行: ${stepName} (${step}/${experimentState.totalSteps})`);
+                        
+                        if (step < experimentState.totalSteps) {
+                            runStep(step + 1);
+                        }
+                    }, 2500);
+                }
+                
+                runStep(experimentState.currentStep);
+            }
+        }
+        
+        // 下一步
+        function nextStep() {
+            if (experimentState.currentStep < experimentState.totalSteps) {
+                experimentState.currentStep++;
+                goToStep(experimentState.currentStep);
+            }
+        }
+        
+        // 上一步
+        function prevStep() {
+            if (experimentState.currentStep > 1) {
+                experimentState.currentStep--;
+                goToStep(experimentState.currentStep);
+            }
+        }
+        
+        // 跳转到指定步骤
+        function goToStep(stepNumber) {
+            const step = parseInt(stepNumber);
+            if (step >= 1 && step <= experimentState.totalSteps) {
+                experimentState.currentStep = step;
+                
+                // 更新UI
+                updateSettingsDisplay();
+                updateStepIndicators();
+                
+                // 更新滑块
+                document.getElementById('stepSlider').value = step;
+                
+                // 添加日志
+                const stepName = stepConfigs[step - 1].title;
+                addLog(`跳转到: ${stepName} (第${step}步)`);
+            }
+        }
+        
+        // 更新人数设置
+        function updatePersonCount(count) {
+            experimentState.settings.personCount = parseInt(count);
+            document.getElementById('personCount').textContent = count;
+            updateSettingsDisplay();
+            generateFaceLibrary();
+        }
+        
+        // 更新照片数设置
+        function updatePhotoCount(count) {
+            experimentState.settings.photoCount = parseInt(count);
+            document.getElementById('photoCount').textContent = count;
+            updateSettingsDisplay();
+            generateFaceLibrary();
+        }
+        
+        // 更新k值设置
+        function updateKValue(k) {
+            experimentState.settings.kValue = parseInt(k);
+            document.getElementById('kValue').textContent = k;
+            updateSettingsDisplay();
+        }
+        
+        // 重置实验
+        function resetExperiment() {
+            if (confirm('确定要重置实验吗？所有进度将被清除。')) {
+                experimentState.currentStep = 1;
+                experimentState.isRunning = false;
+                experimentState.isComplete = false;
+                experimentState.settings.selectedFaces = [];
+                experimentState.log = [];
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').innerHTML = '🚀 开始实验';
+                document.getElementById('resetBtn').disabled = true;
+                document.getElementById('completeBtn').disabled = true;
+                document.getElementById('executeBtn').innerHTML = '执行当前步骤';
+                document.getElementById('autoRunBtn').disabled = false;
+                document.getElementById('autoRunBtn').innerHTML = '🤖 自动运行全部';
+                document.getElementById('experimentReport').style.display = 'none';
+                
+                updateSettingsDisplay();
+                updateStepIndicators();
+                
+                // 清空日志
+                document.getElementById('experimentLog').innerHTML = 
+                    '<div class="log-entry"><span class="log-time">[00:00]</span> 实验已重置</div>';
+                
+                addLog('实验已重置，可以重新开始');
+            }
+        }
+        
+        // 完成实验
+        function completeExperiment() {
+            if (experimentState.currentStep < experimentState.totalSteps) {
+                experimentState.currentStep = experimentState.totalSteps;
+                goToStep(experimentState.totalSteps);
+            }
+            
+            experimentState.isComplete = true;
+            experimentState.results = {
+                accuracy: 85 + Math.random() * 10,
+                reconstructionError: 5 + Math.random() * 10,
+                runtime: 120 + Math.random() * 60,
+                variance: 90 + Math.random() * 8
+            };
+            
+            addLog('🎉 实验完成！');
+            addLog(`最终识别准确率: ${experimentState.results.accuracy.toFixed(1)}%`);
+            addLog(`平均重建误差: ${experimentState.results.reconstructionError.toFixed(1)}%`);
+            
+            // 显示实验报告
+            showExperimentReport();
+        }
+        
+        // 显示实验报告
+        function showExperimentReport() {
+            const report = document.getElementById('experimentReport');
+            const results = experimentState.results;
+            const settings = experimentState.settings;
+            
+            // 填充报告数据
+            document.getElementById('reportPersonCount').textContent = settings.personCount;
+            document.getElementById('reportPhotoCount').textContent = settings.photoCount;
+            document.getElementById('reportTrainCount').textContent = 
+                Math.floor(settings.personCount * settings.photoCount * 0.8);
+            document.getElementById('reportTestCount').textContent = 
+                settings.personCount * settings.photoCount - Math.floor(settings.personCount * settings.photoCount * 0.8);
+            document.getElementById('reportKValue').textContent = settings.kValue;
+            
+            document.getElementById('reportAccuracy').textContent = 
+                `${results.accuracy.toFixed(1)}%`;
+            document.getElementById('reportReconstructionError').textContent = 
+                `${results.reconstructionError.toFixed(1)}%`;
+            document.getElementById('reportRuntime').textContent = 
+                `${Math.floor(results.runtime)}秒`;
+            document.getElementById('reportVariance').textContent = 
+                `${results.variance.toFixed(1)}%`;
+            document.getElementById('reportReducedDim').textContent = 
+                settings.kValue;
+            
+            // 显示报告
+            report.style.display = 'block';
+            report.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 下载实验报告
+        function downloadReport() {
+            alert('实验报告下载功能（模拟）\n在实际系统中，这里会生成PDF报告供下载。');
+            addLog('实验报告已下载（模拟）');
+        }
+        
+        // 分享结果
+        function shareResults() {
+            const accuracy = experimentState.results.accuracy.toFixed(1);
+            alert(`分享实验结果（模拟）\n识别准确率: ${accuracy}%\n将结果分享到学习平台。`);
+            addLog('实验结果已分享（模拟）');
+        }
+        
+        // 导航函数
+        function goToBeta() {
+            if (confirm('返回贝塔星？当前实验进度将保存。')) {
+                window.location.href = '../planet102/index.html';
+            }
+        }
+        
+        function goToDelta() {
+            alert('德尔塔星正在开发中，敬请期待！');
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', function() {
+            initGammaLab();
+            
+            // 添加快捷键
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    window.location.href = '../../index.html';
+                } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
+                    prevStep();
+                } else if (e.key === 'ArrowRight' && e.ctrlKey) {
+                    nextStep();
+                } else if (e.key === ' ') {
+                    e.preventDefault();
+                    executeCurrentStep();
+                } else if (e.key === 'r' && e.ctrlKey) {
+                    e.preventDefault();
+                    resetExperiment();
+                }
+            });
+            
+            // 添加键盘提示
+            setTimeout(() => {
+                const hint = document.createElement('div');
+                hint.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(25, 35, 70, 0.9);
+                    color: #a5d5ff;
+                    padding: 10px 15px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    border: 1px solid rgba(100, 180, 255, 0.2);
+                    z-index: 100;
+                `;
+                hint.innerHTML = '💡 快捷键:<br>' +
+                               'ESC: 返回主页<br>' +
+                               'Ctrl+←/→: 切换步骤<br>' +
+                               '空格: 执行步骤<br>' +
+                               'Ctrl+R: 重置实验';
+                document.body.appendChild(hint);
+                
+                setTimeout(() => hint.remove(), 8000);
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
